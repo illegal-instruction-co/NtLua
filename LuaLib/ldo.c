@@ -55,9 +55,15 @@
 #if defined(__cplusplus) && !defined(LUA_USE_LONGJMP)	/* { */
 
 /* C++ exceptions */
-#define LUAI_THROW(L,c)		throw(c)
+// Why would we want to raise an exception while working on the kernel?
+
+int filter() {
+    return 1;
+}
+
+#define LUAI_THROW(L,c)	c->throwed = true
 #define LUAI_TRY(L,c,a) \
-	try { a } catch(...) { if ((c)->status == 0) (c)->status = -1; }
+	__try { a } __except(filter()) { if ((c)->status == 0 && ((c)->throwed)) (c)->status = -1; }
 #define luai_jmpbuf		int  /* dummy variable */
 
 #elif defined(LUA_USE_POSIX)				/* }{ */
@@ -81,10 +87,12 @@
 
 
 /* chain list of long jump buffers */
+// when you could handle it with just a boolean?
 struct lua_longjmp {
   struct lua_longjmp *previous;
   luai_jmpbuf b;
   volatile int status;  /* error code */
+  bool throwed;
 };
 
 
